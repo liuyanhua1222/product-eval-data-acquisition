@@ -1,26 +1,33 @@
 """
-fetch_ecommerce.py — 采集京东/天猫/美团电商平台数据
+fetch_ecommerce.py — 采集京东/天猫/美团/京东到家/饿了么电商平台数据
 
 鉴权模式: access-token（推荐登录，未登录时部分数据受限）
 依赖: playwright（pip install playwright && playwright install chromium）
 
 覆盖评估规则: A02/A03/A06/A07/C04/I03/I04
 
+平台分组:
+  --platform b2c   → 京东 + 天猫（B2C 运营能力）
+  --platform o2o   → 美团 + 京东到家 + 饿了么（O2O 运营能力）
+  --platform all   → 全部五个平台（默认）
+
 用法:
   python fetch_ecommerce.py --product 阿司匹林
-  python fetch_ecommerce.py --product 阿司匹林 --platform jd --pages 5 --json
-  python fetch_ecommerce.py --product 阿司匹林 --platform meituan --json
+  python fetch_ecommerce.py --product 阿司匹林 --platform b2c --pages 5 --json
+  python fetch_ecommerce.py --product 阿司匹林 --platform o2o --json
 """
 
 import argparse
 import json
-import os
+import random
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
-SESSION_DIR = Path(os.environ.get("SESSION_DIR", Path.home() / ".agent-browser" / "sessions"))
+sys.path.insert(0, str(Path(__file__).parent))
+from _stealth import load_cookies, stealth_context, human_delay
+
 LOG_DIR = Path(".cms-log/log/product-eval-data-acquisition")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -29,37 +36,40 @@ PLATFORM_CONFIGS = {
         "name": "京东",
         "search_url": "https://search.jd.com/Search?keyword={keyword}&enc=utf-8",
         "cookie_key": "jd",
+        "mobile": False,
     },
     "tmall": {
         "name": "天猫",
         "search_url": "https://list.tmall.com/search_product.htm?q={keyword}",
         "cookie_key": "tmall",
+        "mobile": False,
     },
     "meituan": {
         "name": "美团",
         "search_url": "https://www.meituan.com/search/?q={keyword}",
         "cookie_key": "meituan",
+        "mobile": False,
+    },
+    "jddaojia": {
+        "name": "京东到家",
+        "search_url": "https://daojia.jd.com/search?keyword={keyword}",
+        "cookie_key": "jd",   # 京东到家与京东共用 Cookie
+        "mobile": False,
+    },
+    "eleme": {
+        "name": "饿了么",
+        "search_url": "https://h5.ele.me/search/?keyword={keyword}",
+        "cookie_key": "eleme",
+        "mobile": True,
     },
 }
 
 TIMEOUT = 30000
 MAX_RETRIES = 3
-RETRY_INTERVAL = 2
+RETRY_INTERVAL = 3
 
 
-def load_cookies(context, platform: str) -> int:
-    """从文件加载 Cookie 到浏览器上下文。"""
-    cookie_path = SESSION_DIR / f"{platform}-cookies.json"
-    if not cookie_path.exists():
-        return 0
-    cookies = json.loads(cookie_path.read_text(encoding="utf-8"))
-    if cookies:
-        context.add_cookies(cookies)
-    return len(cookies)
-
-
-def fetch_platform(product: str, platform_key: str, pages: int, wait_ms: int = 3000) -> dict:
-    """采集单个电商平台的搜索结果。"""
+def fetch_platform(product: str, platform_key: str, pages: int, wait_ms: int = 4000) -> dict:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -70,19 +80,7 @@ def fetch_platform(product: str, platform_key: str, pages: int, wait_ms: int = 3
     url = config["search_url"].format(keyword=product)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"],
-        )
-        context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            ),
-            viewport={"width": 1440, "height": 900},
-        )
-        context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => false})")
-
+        browser, context = stealth_context(p, mobile=config["mobile"])
         load_cookies(context, config["cookie_key"])
         page = context.new_page()
 
@@ -92,9 +90,10 @@ def fetch_platform(product: str, platform_key: str, pages: int, wait_ms: int = 3
             for attempt in range(1, MAX_RETRIES + 1):
                 try:
                     page.goto(page_url, wait_until="domcontentloaded", timeout=TIMEOUT)
-                    page.wait_for_timeout(wait_ms)
+                    page.wait_for_timeout(wait_ms + random.randint(0, 2000))
                     text = page.evaluate("() => document.body.innerText")
                     all_text.append(text)
+                    human_delay(500, 1500)
                     break
                 except Exception as e:
                     if attempt < MAX_RETRIES:
@@ -112,26 +111,31 @@ def fetch_platform(product: str, platform_key: str, pages: int, wait_ms: int = 3
         "pages_fetched": len(all_text),
         "query_url": url,
         "query_date": datetime.now().strftime("%Y-%m-%d"),
-        "raw_text_preview": combined_text[:3000],
+        "raw_text_preview": combined_text[:4000],
         "text_length": len(combined_text),
     }
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="采集京东/天猫/美团电商平台数据")
+    parser = argparse.ArgumentParser(description="采集京东/天猫/美团/京东到家/饿了么电商平台数据")
     parser.add_argument("--product", required=True, help="搜索关键词")
     parser.add_argument(
         "--platform",
-        choices=["jd", "tmall", "meituan", "all"],
+        choices=["jd", "tmall", "meituan", "jddaojia", "eleme", "all", "o2o", "b2c"],
         default="all",
-        help="采集平台：jd/tmall/meituan/all，默认 all",
+        help="采集平台：jd/tmall/meituan/jddaojia/eleme/all/o2o/b2c，默认 all",
     )
     parser.add_argument("--pages", type=int, default=3, help="采集页数，默认 3")
-    parser.add_argument("--wait", type=int, default=3000, help="每页等待时间（ms），默认 3000")
+    parser.add_argument("--wait", type=int, default=4000, help="每页等待时间（ms），默认 4000")
     parser.add_argument("--json", dest="output_json", action="store_true", help="输出 JSON 格式")
     args = parser.parse_args()
 
-    platforms = ["jd", "tmall", "meituan"] if args.platform == "all" else [args.platform]
+    platform_map = {
+        "all": ["jd", "tmall", "meituan", "jddaojia", "eleme"],
+        "o2o": ["meituan", "jddaojia", "eleme"],
+        "b2c": ["jd", "tmall"],
+    }
+    platforms = platform_map.get(args.platform, [args.platform])
     results = []
 
     for plat in platforms:

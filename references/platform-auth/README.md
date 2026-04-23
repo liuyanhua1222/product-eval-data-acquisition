@@ -16,16 +16,22 @@
 
 ## 支持的平台
 
-| 平台标识 | 平台名称 | 登录方式 | 是否必须 |
-|---------|---------|---------|---------|
-| `yaozh` | 药智网 | 账号密码 / 手机验证码 | 推荐 |
-| `kaisi` | 开思数据 | 账号密码 / 微信扫码 | 必须（H 模块） |
-| `douyin` | 抖音创作服务平台 | 手机短信验证码 | 推荐（B03/C03/J02/K01） |
-| `cma` | 中华医学会 | 账号密码 | 可选 |
-| `wanfang` | 万方数据 | 账号密码 | 可选 |
-| `cnki` | 知网CNKI | 账号密码 | 可选 |
-| `nmpa` | 国家药监局 | 无需登录 | — |
-| `nhsa` | 国家医保局 | 无需登录 | — |
+| 平台标识 | 平台名称 | URL | 登录方式 | 是否必须 |
+|---------|---------|-----|---------|---------|
+| `yaozh` | 药智网 | https://db.yaozh.com/ | 账号密码 / 手机验证码 | 推荐 |
+| `kaisi` | 开思数据 | https://agent.sinohealth.com/chis | 账号密码 / 微信扫码 | 必须（H 模块） |
+| `douyin` | 抖音创作服务平台 | https://creator.douyin.com/ | 手机短信验证码 | 推荐（B03/C03/J02/K01） |
+| `xiaohongshu` | 小红书 | https://www.xiaohongshu.com/ | 手机短信验证码 | 推荐（B03/C04/J02） |
+| `jd` | 京东 | https://www.jd.com/ | 账号密码 / 手机验证码 | 推荐（A02/A03/C04） |
+| `tmall` | 天猫 | https://www.tmall.com/ | 淘宝账号 | 推荐（A02/A03/C04） |
+| `meituan` | 美团 | https://www.meituan.com/ | 手机短信验证码 | 推荐（A03/A07 O2O） |
+| `eleme` | 饿了么 | https://h5.ele.me/ | 手机短信验证码 | 推荐（A03/A07 O2O） |
+| `dingxiangyuan` | 丁香园 | https://drugs.dxy.cn/ | 无需登录（说明书公开） | — |
+| `cma` | 中华医学会 | https://www.cma.org.cn/ | 账号密码 | 可选（E01/I06） |
+| `wanfang` | 万方数据 | https://www.wanfangdata.com.cn/ | 账号密码 | 可选 |
+| `cnki` | 知网CNKI | https://www.cnki.net/ | 账号密码 | 可选 |
+| `nmpa` | 国家药监局 | https://www.nmpa.gov.cn/ | 无需登录 | — |
+| `nhsa` | 国家医保局 | https://www.nhsa.gov.cn/ | 无需登录 | — |
 
 ---
 

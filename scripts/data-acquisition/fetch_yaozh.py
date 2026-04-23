@@ -14,13 +14,14 @@ fetch_yaozh.py — 采集药智网批文与说明书数据
 
 import argparse
 import json
-import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
-SESSION_DIR = Path(os.environ.get("SESSION_DIR", Path.home() / ".agent-browser" / "sessions"))
+sys.path.insert(0, str(Path(__file__).parent))
+from _stealth import load_cookies, stealth_context, is_login_page
+
 LOG_DIR = Path(".cms-log/log/product-eval-data-acquisition")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -28,17 +29,6 @@ SEARCH_URL = "https://db.yaozh.com/pijian?comprehensivesearchcontent={keyword}"
 TIMEOUT = 30000
 MAX_RETRIES = 3
 RETRY_INTERVAL = 2
-
-
-def load_cookies(context, platform: str) -> int:
-    """从文件加载 Cookie 到浏览器上下文，返回加载数量。"""
-    cookie_path = SESSION_DIR / f"{platform}-cookies.json"
-    if not cookie_path.exists():
-        return 0
-    cookies = json.loads(cookie_path.read_text(encoding="utf-8"))
-    if cookies:
-        context.add_cookies(cookies)
-    return len(cookies)
 
 
 def fetch_page(url: str, platform: str, wait_ms: int) -> dict:
@@ -50,18 +40,8 @@ def fetch_page(url: str, platform: str, wait_ms: int) -> dict:
         sys.exit(1)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-blink-features=AutomationControlled"],
-        )
-        context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
-                "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-            ),
-            viewport={"width": 375, "height": 812},
-        )
-        context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => false})")
+        # 药智网用 iPhone UA，参考 playwright-stealth.js
+        browser, context = stealth_context(p, mobile=True)
 
         cookie_count = load_cookies(context, platform)
         if cookie_count == 0:
@@ -89,23 +69,18 @@ def fetch_page(url: str, platform: str, wait_ms: int) -> dict:
 
 
 def parse_approval_records(text: str) -> list[dict]:
-    """从页面文本中解析批文记录（简单文本解析，实际可按页面结构优化）。"""
+    """从页面文本中解析批文记录。"""
     records = []
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-
-    # 药智网批文页面的典型字段标记
     field_markers = ["批准文号", "企业名称", "剂型", "规格", "批准日期", "医保类别", "状态"]
     current = {}
 
     for line in lines:
         for marker in field_markers:
             if line.startswith(marker) and "：" in line:
-                key = marker
-                value = line.split("：", 1)[1].strip()
-                current[key] = value
+                current[marker] = line.split("：", 1)[1].strip()
                 break
-        # 简单启发：遇到新批准文号时保存上一条
-        if line.startswith("国药准字") or line.startswith("H") and len(line) == 10:
+        if line.startswith("国药准字") or (line.startswith("H") and len(line) == 10):
             if current:
                 records.append(current)
             current = {"批准文号": line}
@@ -131,12 +106,11 @@ def main() -> None:
 
     page_data = fetch_page(url, "yaozh", args.wait)
 
-    # 检查是否跳转到登录页
-    if "login" in page_data["url"].lower():
+    if is_login_page(page_data["url"]):
         result = {
             "success": False,
-            "error": "Cookie 已过期，请重新登录",
-            "action": "python scripts/platform-auth/login.py --platform yaozh --manual",
+            "error": "Cookie 已过期，请重新导入或登录",
+            "action": "python scripts/platform-auth/login.py --import-cdp <cookies文件路径>",
         }
     else:
         records = parse_approval_records(page_data["text"])
@@ -151,8 +125,6 @@ def main() -> None:
             "records": records,
             "raw_text_preview": page_data["text"][:2000],
         }
-
-        # 写入日志
         log_file = LOG_DIR / f"yaozh-{args.product}-{datetime.now().strftime('%Y%m%d%H%M%S')}.json"
         log_file.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"📄 结果已保存: {log_file}", file=sys.stderr)
@@ -164,7 +136,6 @@ def main() -> None:
             print(f"\n✅ 药智网查询成功")
             print(f"   产品: {result['product']}")
             print(f"   记录数: {result['record_count']}")
-            print(f"   查询日期: {result['query_date']}")
             if result["records"]:
                 print(f"\n   前 3 条记录:")
                 for r in result["records"][:3]:

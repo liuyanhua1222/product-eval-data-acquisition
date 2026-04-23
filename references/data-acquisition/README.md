@@ -18,11 +18,17 @@
 
 | 脚本 | 数据源 | URL | 覆盖评估规则 | 登录要求 |
 |------|--------|-----|------------|---------|
+| `fetch_nmpa.py` | 国家药监局 | https://www.nmpa.gov.cn/datasearch/home-index.html#category=yp | A00/A01/A04/A09/A10/F01/F02/H09 | 无需登录（公开数据） |
+| `fetch_nhsa.py` | 国家医保局 | https://www.nhsa.gov.cn/ | A00（医保类别） | 无需登录（公开数据） |
 | `fetch_yaozh.py` | 药智网 | https://db.yaozh.com/ | A00/A01/A04/A08/A09/A10/B01/B02/F01/F02 | 推荐登录（VIP 解锁更多字段） |
+| `fetch_dingxiangyuan.py` | 丁香园 | https://drugs.dxy.cn/ | A00/A08/B01/B02/E01/E02/E03/G01/G02 | 无需登录（说明书公开） |
 | `fetch_kaisi.py` | 开思数据 | https://agent.sinohealth.com/chis | A02/A05/A06/D01-D04/H01-H11 | 必须登录 |
-| `fetch_ecommerce.py` | 京东 / 天猫 / 美团 | 各平台站内 | A02/A03/A06/A07/C04/I03/I04 | 推荐登录 |
+| `fetch_ecommerce.py` | 京东 / 天猫 / 美团 / 京东到家 / 饿了么 | 各平台站内 | A02/A03/A06/A07/C04/I03/I04 | 推荐登录 |
 | `fetch_douyin.py` | 抖音创作服务平台 | https://creator.douyin.com/creator-micro/creator-count/arithmetic-index | B03/C03/J02 | 必须登录 |
+| `fetch_juliang.py` | 巨量算数 | https://trend.moutai.com/ | B03/C03/J02 | 推荐登录（与抖音共用账号） |
+| `fetch_xiaohongshu.py` | 小红书 | https://www.xiaohongshu.com/search_result | B03/C04/J02 | 推荐登录 |
 | `fetch_literature.py` | PubMed / 万方 / 知网 | pubmed.ncbi.nlm.nih.gov 等 | C01/C02/E01/E02/E03/G01/G02/I01/I02/J01 | PubMed 无需登录 |
+| `fetch_guideline.py` | 中华医学会 / 丁香园指南 / 中国医师协会 | cma.org.cn / guide.dxy.cn 等 | E01/E02/I06/I07 | 无需登录（大部分公开） |
 | `fetch_doctor.py` | 抖音 / 视频号 | 抖音站内搜索 | K01/K02 | 必须登录抖音 |
 
 ---

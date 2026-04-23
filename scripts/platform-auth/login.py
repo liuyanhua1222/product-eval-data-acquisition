@@ -8,6 +8,7 @@ login.py — 登录数据平台并保存 Cookie 会话
   python login.py --platform yaozh --manual              # 手动登录（推荐）
   python login.py --platform yaozh --username 138xxx --password xxx
   python login.py --platform douyin --username 138xxx    # 短信登录（密码为验证码）
+  python login.py --import-cdp /path/to/cookies-cdp-domain.json  # 从 CDP 域名分组文件批量导入
 """
 
 import argparse
@@ -311,12 +312,26 @@ def login_sms(platform: str, config: dict, username: str, code: str | None) -> d
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="登录数据平台并保存 Cookie 会话")
-    parser.add_argument("--platform", required=True, help="平台标识（yaozh/kaisi/douyin/cma/wanfang/cnki）")
+    parser.add_argument("--platform", help="平台标识（yaozh/kaisi/douyin/xiaohongshu/jd/tmall/meituan/cma/wanfang/cnki）")
     parser.add_argument("--username", help="账号或手机号")
     parser.add_argument("--password", help="密码或短信验证码")
     parser.add_argument("--manual", action="store_true", help="手动登录模式（打开浏览器窗口）")
+    parser.add_argument(
+        "--import-cdp",
+        metavar="FILE",
+        help="从 CDP 域名分组格式的 JSON 文件批量导入 Cookie（如 cookies-cdp-domain.json）",
+    )
     parser.add_argument("--json", dest="output_json", action="store_true", help="输出 JSON 格式")
     args = parser.parse_args()
+
+    # ── CDP 批量导入模式 ────────────────────────────────────────────────────
+    if args.import_cdp:
+        _import_cdp_cookies(args.import_cdp, args.output_json)
+        return
+
+    # ── 单平台登录模式 ──────────────────────────────────────────────────────
+    if not args.platform:
+        parser.error("请指定 --platform 或 --import-cdp")
 
     platform = args.platform.lower()
     if platform not in PLATFORM_CONFIGS:
@@ -346,6 +361,96 @@ def main() -> None:
         print(f"\n{status} 登录 {config['name']}")
         print(f"   Cookie 数量: {result['cookie_count']}")
         print(f"   保存路径: {result['cookie_path']}")
+
+
+# ── CDP 域名分组格式批量导入 ────────────────────────────────────────────────
+
+# 域名 → 平台标识映射
+_DOMAIN_TO_PLATFORM = {
+    "yaozh.com":          "yaozh",
+    "sinohealth.com":     "kaisi",
+    "jd.com":             "jd",
+    "tmall.com":          "tmall",
+    "taobao.com":         "tmall",        # 天猫/淘宝共用同一 Cookie
+    "douyin.com":         "douyin",
+    "creator.douyin.com": "douyin",       # creator 子域与主域合并
+    "wanfangdata.com.cn": "wanfang",
+    "cnki.net":           "cnki",
+    "xiaohongshu.com":    "xiaohongshu",
+    "xhscdn.com":         "xiaohongshu",  # 小红书 CDN 域
+    "meituan.com":        "meituan",
+    "ele.me":             "eleme",
+    "dxy.cn":             "dingxiangyuan",
+    "dxy.com":            "dingxiangyuan",
+    "cma.org.cn":         "cma",
+}
+
+# 公开平台：无需 Cookie，跳过时给出正确提示
+_PUBLIC_DOMAINS = {
+    "nmpa.gov.cn":             "国家药监局（公开数据，无需 Cookie）",
+    "pubmed.ncbi.nlm.nih.gov": "PubMed（公开 API，无需 Cookie）",
+    "nhsa.gov.cn":             "国家医保局（公开数据，无需 Cookie）",
+}
+
+
+def _import_cdp_cookies(cdp_file: str, output_json: bool = False) -> None:
+    """
+    从 CDP 域名分组格式的 JSON 文件批量导入 Cookie。
+
+    文件格式：{ "domain.com": [ {name, value, domain, path, ...}, ... ], ... }
+    输出格式：~/.agent-browser/sessions/<platform>-cookies.json（Playwright flat list）
+    """
+    cdp_path = Path(cdp_file)
+    if not cdp_path.exists():
+        print(f"❌ 文件不存在: {cdp_file}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        data: dict = json.loads(cdp_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"❌ 读取文件失败: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if not isinstance(data, dict):
+        print("❌ 文件格式错误：顶层应为域名→Cookie列表的对象", file=sys.stderr)
+        sys.exit(1)
+
+    platform_cookies: dict[str, list] = {}
+    results = []
+
+    for domain, cookies in data.items():
+        if domain in _PUBLIC_DOMAINS:
+            results.append({"domain": domain, "status": "skipped", "reason": _PUBLIC_DOMAINS[domain]})
+            print(f"ℹ️  {domain} → {_PUBLIC_DOMAINS[domain]}")
+            continue
+
+        platform = _DOMAIN_TO_PLATFORM.get(domain)
+        if not platform:
+            results.append({"domain": domain, "status": "skipped", "reason": "未知域名，未在映射表中"})
+            print(f"⚠️  {domain} → 未知域名，跳过（如需支持请更新 _DOMAIN_TO_PLATFORM）")
+            continue
+
+        if platform not in platform_cookies:
+            platform_cookies[platform] = []
+        platform_cookies[platform].extend(cookies)
+
+    # 写入各平台文件，按 (name, domain, path) 去重
+    for platform, cookies in platform_cookies.items():
+        seen: dict[tuple, dict] = {}
+        for c in cookies:
+            key = (c.get("name"), c.get("domain"), c.get("path"))
+            seen[key] = c
+        deduped = list(seen.values())
+
+        out = SESSION_DIR / f"{platform}-cookies.json"
+        out.write_text(json.dumps(deduped, ensure_ascii=False, indent=2), encoding="utf-8")
+        results.append({"platform": platform, "status": "imported", "cookie_count": len(deduped), "path": str(out)})
+        print(f"✅ {platform}: {len(deduped)} cookies → {out}")
+
+    print(f"\n导入完成：{len(platform_cookies)} 个平台")
+
+    if output_json:
+        print(json.dumps(results, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

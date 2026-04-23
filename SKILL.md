@@ -29,11 +29,21 @@ dependencies:
 
 | 平台 | URL |
 |------|-----|
-| 药智网 | https://db.yaozh.com/ |
 | 国家药监局 | https://www.nmpa.gov.cn/datasearch/home-index.html#category=yp |
 | 国家医保局 | https://www.nhsa.gov.cn/ |
+| 药智网 | https://db.yaozh.com/ |
+| 丁香园（说明书） | https://drugs.dxy.cn/ |
+| 丁香园（临床指南） | https://guide.dxy.cn/ |
+| 中华医学会 | https://www.cma.org.cn/ |
 | 开思数据 | https://agent.sinohealth.com/chis |
 | 抖音指数 | https://creator.douyin.com/creator-micro/creator-count/arithmetic-index |
+| 巨量算数 | https://trend.moutai.com/ |
+| 小红书 | https://www.xiaohongshu.com/search_result |
+| 京东 | https://search.jd.com/ |
+| 天猫 | https://list.tmall.com/ |
+| 美团 | https://www.meituan.com/ |
+| 京东到家 | https://daojia.jd.com/ |
+| 饿了么 | https://h5.ele.me/ |
 
 ---
 
@@ -109,11 +119,18 @@ dependencies:
 |---------|------|---------|---------|------|
 | 查看各平台登录状态 | `platform-auth` | 检查所有平台 Cookie 是否有效 | `./references/platform-auth/README.md` | `./scripts/platform-auth/check_session.py` |
 | 登录某个平台 | `platform-auth` | 自动化填表或手动登录并保存 Cookie | `./references/platform-auth/README.md` | `./scripts/platform-auth/login.py` |
+| 批量导入 CDP Cookie | `platform-auth` | 从 cookies-cdp-domain.json 一键导入所有平台 | `./references/platform-auth/README.md` | `./scripts/platform-auth/login.py --import-cdp` |
 | 清除某平台会话 | `platform-auth` | 删除指定平台的 Cookie 文件 | `./references/platform-auth/README.md` | `./scripts/platform-auth/clear_session.py` |
+| 采集 NMPA 注册信息 | `data-acquisition` | 查询国家药监局批准文号、注册分类 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_nmpa.py` |
+| 采集国家医保局数据 | `data-acquisition` | 查询医保甲/乙类、医保编码 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_nhsa.py` |
 | 采集药智网批文数据 | `data-acquisition` | 查询批准文号、企业、剂型、医保类别 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_yaozh.py` |
+| 采集丁香园说明书/指南 | `data-acquisition` | 查询说明书全文、适应症、临床指南推荐 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_dingxiangyuan.py` |
+| 采集临床指南/专家共识 | `data-acquisition` | 查询中华医学会/丁香园指南推荐位置 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_guideline.py` |
 | 采集开思数据市场数据 | `data-acquisition` | 查询市场规模、品牌份额、Top3 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_kaisi.py` |
-| 采集电商平台数据 | `data-acquisition` | 查询京东/天猫价格、销量、评价 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_ecommerce.py` |
+| 采集电商平台数据 | `data-acquisition` | 查询京东/天猫/美团/京东到家/饿了么价格、销量、评价 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_ecommerce.py` |
 | 采集抖音关键词指数 | `data-acquisition` | 查询抖音指数（搜索指数/综合指数） | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_douyin.py` |
+| 采集巨量算数趋势数据 | `data-acquisition` | 查询关键词历史趋势、人群画像 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_juliang.py` |
+| 采集小红书搜索数据 | `data-acquisition` | 查询小红书笔记数、热度词、话题标签 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_xiaohongshu.py` |
 | 采集学术文献数据 | `data-acquisition` | 查询 PubMed/万方/知网临床文献 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_literature.py` |
 | 采集医生资源数据 | `data-acquisition` | 查询抖音/视频号可合作医生数量和粉丝规模 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_doctor.py` |
 | 执行完整产品评估 | `evaluation` | 按框架 3.1 执行 A00-K02 评估事项 | `./references/evaluation/README.md` | `./scripts/evaluation/run_evaluation.py` |
@@ -141,10 +158,17 @@ product-eval-data-acquisition/
     │   └── clear_session.py
     ├── data-acquisition/
     │   ├── README.md
+    │   ├── _stealth.py
+    │   ├── fetch_nmpa.py
+    │   ├── fetch_nhsa.py
     │   ├── fetch_yaozh.py
+    │   ├── fetch_dingxiangyuan.py
+    │   ├── fetch_guideline.py
     │   ├── fetch_kaisi.py
     │   ├── fetch_ecommerce.py
     │   ├── fetch_douyin.py
+    │   ├── fetch_juliang.py
+    │   ├── fetch_xiaohongshu.py
     │   ├── fetch_literature.py
     │   └── fetch_doctor.py
     └── evaluation/

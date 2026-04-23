@@ -19,14 +19,20 @@ from pathlib import Path
 SESSION_DIR = Path(os.environ.get("SESSION_DIR", Path.home() / ".agent-browser" / "sessions"))
 
 PLATFORMS = {
-    "yaozh":    "药智网",
-    "kaisi":    "开思CHIS",
-    "douyin":   "抖音创作服务平台",
-    "cma":      "中华医学会",
-    "wanfang":  "万方数据",
-    "cnki":     "知网CNKI",
-    "nmpa":     "国家药监局（无需登录）",
-    "nhsa":     "国家医保局（无需登录）",
+    "yaozh":         "药智网",
+    "kaisi":         "开思数据",
+    "douyin":        "抖音创作服务平台",
+    "xiaohongshu":   "小红书",
+    "jd":            "京东",
+    "tmall":         "天猫",
+    "meituan":       "美团",
+    "eleme":         "饿了么",
+    "dingxiangyuan": "丁香园",
+    "cma":           "中华医学会",
+    "wanfang":       "万方数据",
+    "cnki":          "知网CNKI",
+    "nmpa":          "国家药监局（无需登录）",
+    "nhsa":          "国家医保局（无需登录）",
 }
 
 NO_LOGIN_PLATFORMS = {"nmpa", "nhsa"}
