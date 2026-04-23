@@ -27,6 +27,8 @@ def result_icon(result: str) -> str:
         "不通过": "❌",
         "需补充数据": "⚠️",
         "待执行": "⏳",
+        "待采集或判读": "⏳",
+        "待人工判读": "🧠",
         "不适用": "—",
     }
     return icons.get(result, "❓")

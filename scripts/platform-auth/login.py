@@ -62,6 +62,51 @@ PLATFORM_CONFIGS = {
         "wait_after_login": 3000,
         "login_type": "sms",
     },
+    "xiaohongshu": {
+        "name": "小红书",
+        "login_url": "https://www.xiaohongshu.com/explore",
+        "test_url": "https://www.xiaohongshu.com/explore",
+        "test_text": "小红书",
+        "selectors": {},
+        "wait_after_login": 5000,
+        "login_type": "manual_only",
+    },
+    "jd": {
+        "name": "京东",
+        "login_url": "https://passport.jd.com/new/login.aspx",
+        "test_url": "https://www.jd.com/",
+        "test_text": "京东",
+        "selectors": {},
+        "wait_after_login": 5000,
+        "login_type": "manual_only",
+    },
+    "tmall": {
+        "name": "天猫",
+        "login_url": "https://login.tmall.com/",
+        "test_url": "https://www.tmall.com/",
+        "test_text": "天猫",
+        "selectors": {},
+        "wait_after_login": 5000,
+        "login_type": "manual_only",
+    },
+    "meituan": {
+        "name": "美团",
+        "login_url": "https://passport.meituan.com/account/unitivelogin",
+        "test_url": "https://www.meituan.com/",
+        "test_text": "美团",
+        "selectors": {},
+        "wait_after_login": 5000,
+        "login_type": "manual_only",
+    },
+    "eleme": {
+        "name": "饿了么",
+        "login_url": "https://h5.ele.me/login/",
+        "test_url": "https://h5.ele.me/",
+        "test_text": "饿了么",
+        "selectors": {},
+        "wait_after_login": 5000,
+        "login_type": "manual_only",
+    },
     "cma": {
         "name": "中华医学会",
         "login_url": "https://www.cma.org.cn/col/col1702/index.html",
@@ -343,6 +388,9 @@ def main() -> None:
 
     if args.manual:
         result = login_manual(platform, config)
+    elif config["login_type"] == "manual_only":
+        print(f"❌ {config['name']} 仅支持 --manual 手动登录或 --import-cdp 导入 Cookie", file=sys.stderr)
+        sys.exit(1)
     elif config["login_type"] == "sms":
         if not args.username:
             print("❌ 短信登录需要 --username（手机号）", file=sys.stderr)

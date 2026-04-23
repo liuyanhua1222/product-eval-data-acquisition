@@ -17,14 +17,30 @@ from pathlib import Path
 
 SESSION_DIR = Path(os.environ.get("SESSION_DIR", Path.home() / ".agent-browser" / "sessions"))
 
-ALL_PLATFORMS = ["yaozh", "kaisi", "douyin", "cma", "wanfang", "cnki", "nmpa", "nhsa"]
+ALL_PLATFORMS = [
+    "yaozh",
+    "kaisi",
+    "douyin",
+    "xiaohongshu",
+    "jd",
+    "tmall",
+    "meituan",
+    "eleme",
+    "dingxiangyuan",
+    "cma",
+    "wanfang",
+    "cnki",
+]
 
 
 def clear_platform(platform: str) -> dict:
     """清除指定平台的 Cookie 文件。"""
     cookie_path = SESSION_DIR / f"{platform}-cookies.json"
     if cookie_path.exists():
-        cookie_path.unlink()
+        try:
+            cookie_path.unlink()
+        except PermissionError as e:
+            return {"platform": platform, "cleared": False, "note": f"无权限删除会话文件: {e}"}
         return {"platform": platform, "cleared": True, "note": "会话已清除"}
     return {"platform": platform, "cleared": False, "note": "无会话可清除"}
 

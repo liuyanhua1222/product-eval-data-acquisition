@@ -13,6 +13,7 @@ check_session.py — 检查各平台 Cookie 会话状态
 import argparse
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -35,7 +36,7 @@ PLATFORMS = {
     "nhsa":          "国家医保局（无需登录）",
 }
 
-NO_LOGIN_PLATFORMS = {"nmpa", "nhsa"}
+NO_LOGIN_PLATFORMS = {"dingxiangyuan", "nmpa", "nhsa"}
 
 
 def check_platform(platform: str) -> dict:
@@ -113,6 +114,11 @@ def main() -> None:
     parser.add_argument("--platform", help="平台标识（不传则检查所有平台）")
     parser.add_argument("--json", dest="output_json", action="store_true", help="输出 JSON 格式")
     args = parser.parse_args()
+
+    if args.platform and args.platform not in PLATFORMS:
+        print(f"❌ 未知平台: {args.platform}", file=sys.stderr)
+        print(f"   支持的平台: {', '.join(PLATFORMS.keys())}", file=sys.stderr)
+        sys.exit(1)
 
     platforms_to_check = [args.platform] if args.platform else list(PLATFORMS.keys())
 

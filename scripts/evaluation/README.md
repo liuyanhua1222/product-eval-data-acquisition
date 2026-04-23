@@ -4,7 +4,7 @@
 
 | 脚本 | 用途 | 鉴权模式 |
 |------|------|---------|
-| `run_evaluation.py` | 按 3.2 版框架执行 52 个评估事项 | access-token |
+| `run_evaluation.py` | 按 3.1 版框架执行半自动评估编排 | access-token |
 | `generate_report.py` | 汇总结论并生成 Markdown/Word 报告 | nologin |
 
 ---
@@ -48,8 +48,9 @@ python scripts/evaluation/generate_report.py \
 {
   "product": "门冬氨酸钙片",
   "evaluation_date": "2026-04-23",
-  "framework_version": "3.2",
-  "final_verdict": "待完成",
+  "framework_version": "3.1",
+  "engine_mode": "semi-automatic",
+  "final_verdict": "待人工复核",
   "terminated_by": null,
   "stage_results": {
     "stage_1": {
@@ -58,15 +59,17 @@ python scripts/evaluation/generate_report.py \
           "rule": "A01",
           "name": "批文独家判断（Rx）",
           "applicable": null,
-          "result": "待执行",
+          "result": "待人工判读",
           "key_value": null,
           "evidence": null,
           "note": null,
           "missing_source": null
         }
       ],
-      "total": 40,
-      "pending": 38,
+      "total": 41,
+      "passed": 0,
+      "failed": 0,
+      "manual_review": 39,
       "missing_data": 2
     }
   }
@@ -81,3 +84,4 @@ python scripts/evaluation/generate_report.py \
 - `generate_report.py`：
   - Markdown 格式：Python 标准库
   - Word 格式：`python-docx`（`pip install python-docx`）
+- 第三阶段输出为人工评估占位项，不再返回空结果

@@ -35,6 +35,9 @@ python scripts/platform-auth/login.py --platform yaozh --username 138xxx --passw
 # 短信登录（抖音）
 python scripts/platform-auth/login.py --platform douyin --username 138xxx
 
+# 手动登录（小红书/京东/天猫/美团/饿了么当前仅支持手动）
+python scripts/platform-auth/login.py --platform xiaohongshu --manual
+
 # 清除指定平台会话
 python scripts/platform-auth/clear_session.py --platform yaozh
 
@@ -68,3 +71,4 @@ python scripts/platform-auth/clear_session.py --platform all
 - `check_session.py`：无外部依赖（Python 标准库）
 - `login.py`：需要 `playwright`（`pip install playwright && playwright install chromium`）
 - `clear_session.py`：无外部依赖（Python 标准库）
+- 小红书、京东、天猫、美团、饿了么当前仅支持 `--manual` 手动登录或 `--import-cdp` 导入 Cookie

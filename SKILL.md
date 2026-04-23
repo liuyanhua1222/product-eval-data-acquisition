@@ -1,6 +1,6 @@
 ---
 name: product-eval-data-acquisition
-description: 执行院外新产品三阶段筛选评估，自动采集多平台数据并输出 GO/NO GO 结论
+description: 执行院外新产品三阶段筛选评估，自动采集多平台数据并输出半自动评估编排结果
 skillcode: product-eval-data-acquisition
 github: https://github.com/xgjk/xg-skills/tree/main/product-eval-data-acquisition
 dependencies:
@@ -21,7 +21,7 @@ dependencies:
 
 - `platform-auth`：管理各数据平台的登录态与 Cookie 会话
 - `data-acquisition`：使用已登录会话从各平台采集评估所需数据
-- `evaluation`：按 3.1 版评估框架逐条执行 A00-K02 共 52 个独立评估事项，输出结构化报告
+- `evaluation`：按 3.1 版评估框架执行半自动评估编排，对可自动判定规则给出基础结论，其余规则输出待人工判读状态
 
 ---
 
@@ -52,7 +52,7 @@ dependencies:
 - 鉴权依赖：`cms-auth-skills/SKILL.md`
 - 运行日志：`.cms-log/log/product-eval-data-acquisition/`
 - 会话状态：`~/.agent-browser/sessions/<platform>-cookies.json`
-- 输出格式：所有脚本默认输出结构化 JSON
+- 输出格式：所有脚本支持结构化 JSON；`run_evaluation.py` 输出半自动评估编排结果
 
 ---
 
@@ -133,7 +133,7 @@ dependencies:
 | 采集小红书搜索数据 | `data-acquisition` | 查询小红书笔记数、热度词、话题标签 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_xiaohongshu.py` |
 | 采集学术文献数据 | `data-acquisition` | 查询 PubMed/万方/知网临床文献 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_literature.py` |
 | 采集医生资源数据 | `data-acquisition` | 查询抖音/视频号可合作医生数量和粉丝规模 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_doctor.py` |
-| 执行完整产品评估 | `evaluation` | 按框架 3.1 执行 A00-K02 评估事项 | `./references/evaluation/README.md` | `./scripts/evaluation/run_evaluation.py` |
+| 执行完整产品评估 | `evaluation` | 按框架 3.1 执行半自动评估编排并输出待人工复核项 | `./references/evaluation/README.md` | `./scripts/evaluation/run_evaluation.py` |
 | 生成评估报告 | `evaluation` | 汇总结论并输出结构化报告 | `./references/evaluation/README.md` | `./scripts/evaluation/generate_report.py` |
 
 ---

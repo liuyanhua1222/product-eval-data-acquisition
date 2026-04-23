@@ -8,6 +8,7 @@
 | `fetch_kaisi.py` | 采集开思CHIS市场数据 | access-token | A02/A05/A06/D01-D04/H01-H11 |
 | `fetch_ecommerce.py` | 采集京东/天猫电商数据 | access-token | A02/A03/A06/A07/C04 |
 | `fetch_douyin.py` | 采集抖音关键词指数 | access-token | B03/C03/J02 |
+| `fetch_xiaohongshu.py` | 采集小红书搜索结果数据 | access-token | B03/C04/J02 |
 | `fetch_literature.py` | 采集PubMed/万方/知网文献 | nologin（PubMed）/ access-token（万方/知网） | C01/C02/E01/E02/E03/G01/G02 |
 
 ---
@@ -37,6 +38,9 @@ python scripts/data-acquisition/fetch_ecommerce.py --product 阿司匹林 --plat
 
 # 采集抖音关键词指数（最多3个关键词）
 python scripts/data-acquisition/fetch_douyin.py --keywords "阿司匹林,心脑血管,血栓"
+
+# 采集小红书搜索结果
+python scripts/data-acquisition/fetch_xiaohongshu.py --keywords "阿司匹林,心脑血管"
 
 # 采集PubMed文献（无需登录）
 python scripts/data-acquisition/fetch_literature.py --query "aspirin cardiovascular" --limit 20
@@ -71,4 +75,5 @@ python scripts/data-acquisition/fetch_literature.py --query "阿司匹林 心血
 - `fetch_kaisi.py`：`playwright`
 - `fetch_ecommerce.py`：`playwright`
 - `fetch_douyin.py`：`playwright`
+- `fetch_xiaohongshu.py`：`playwright`
 - `fetch_literature.py`：`requests`（`pip install requests`）
