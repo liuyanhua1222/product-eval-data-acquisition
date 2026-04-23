@@ -11,8 +11,9 @@ dependencies:
 
 本文件提供能力边界、路由规则与使用约束。详细说明见 `references/`，实际执行见 `scripts/`。
 
-**当前版本**: 4.0.0
+**当前版本**: 5.0.0
 **接口版本**: v1
+**评估框架**: 3.1 版标准
 
 ---
 
@@ -20,7 +21,19 @@ dependencies:
 
 - `platform-auth`：管理各数据平台的登录态与 Cookie 会话
 - `data-acquisition`：使用已登录会话从各平台采集评估所需数据
-- `evaluation`：按 3.2 版评估框架逐条执行 52 个评估事项，输出结构化报告
+- `evaluation`：按 3.1 版评估框架逐条执行 A00-K02 共 52 个独立评估事项，输出结构化报告
+
+---
+
+## 数据源 URL
+
+| 平台 | URL |
+|------|-----|
+| 药智网 | https://db.yaozh.com/ |
+| 国家药监局 | https://www.nmpa.gov.cn/datasearch/home-index.html#category=yp |
+| 国家医保局 | https://www.nhsa.gov.cn/ |
+| 开思数据 | https://agent.sinohealth.com/chis |
+| 抖音指数 | https://creator.douyin.com/creator-micro/creator-count/arithmetic-index |
 
 ---
 
@@ -48,9 +61,9 @@ dependencies:
 |--------|---------|------|
 | 产品名称 | 必须 | 中文通用名，如"门冬氨酸钙片" |
 | 批准文号 | 可选 | 有则优先用，无则通过产品名查询 |
-| 开思CHIS 账号 | 必须（H 模块） | 无账号则 H01-H11 全部无法完成 |
+| 开思数据账号 | 必须（H 模块） | 无账号则 H01-H11 全部无法完成 |
 | 药智网账号 | 推荐 | VIP 账号可解锁电商销售数据 |
-| 抖音账号 | 推荐 | 无账号则 C03/B03 无法完成 |
+| 抖音账号 | 推荐 | 无账号则 C03/B03/J02 无法完成 |
 
 ---
 
@@ -98,11 +111,12 @@ dependencies:
 | 登录某个平台 | `platform-auth` | 自动化填表或手动登录并保存 Cookie | `./references/platform-auth/README.md` | `./scripts/platform-auth/login.py` |
 | 清除某平台会话 | `platform-auth` | 删除指定平台的 Cookie 文件 | `./references/platform-auth/README.md` | `./scripts/platform-auth/clear_session.py` |
 | 采集药智网批文数据 | `data-acquisition` | 查询批准文号、企业、剂型、医保类别 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_yaozh.py` |
-| 采集开思CHIS市场数据 | `data-acquisition` | 查询市场规模、品牌份额、Top3 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_kaisi.py` |
+| 采集开思数据市场数据 | `data-acquisition` | 查询市场规模、品牌份额、Top3 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_kaisi.py` |
 | 采集电商平台数据 | `data-acquisition` | 查询京东/天猫价格、销量、评价 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_ecommerce.py` |
 | 采集抖音关键词指数 | `data-acquisition` | 查询抖音指数（搜索指数/综合指数） | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_douyin.py` |
 | 采集学术文献数据 | `data-acquisition` | 查询 PubMed/万方/知网临床文献 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_literature.py` |
-| 执行完整产品评估 | `evaluation` | 按框架 3.2 执行 52 个评估事项 | `./references/evaluation/README.md` | `./scripts/evaluation/run_evaluation.py` |
+| 采集医生资源数据 | `data-acquisition` | 查询抖音/视频号可合作医生数量和粉丝规模 | `./references/data-acquisition/README.md` | `./scripts/data-acquisition/fetch_doctor.py` |
+| 执行完整产品评估 | `evaluation` | 按框架 3.1 执行 A00-K02 评估事项 | `./references/evaluation/README.md` | `./scripts/evaluation/run_evaluation.py` |
 | 生成评估报告 | `evaluation` | 汇总结论并输出结构化报告 | `./references/evaluation/README.md` | `./scripts/evaluation/generate_report.py` |
 
 ---
@@ -131,7 +145,8 @@ product-eval-data-acquisition/
     │   ├── fetch_kaisi.py
     │   ├── fetch_ecommerce.py
     │   ├── fetch_douyin.py
-    │   └── fetch_literature.py
+    │   ├── fetch_literature.py
+    │   └── fetch_doctor.py
     └── evaluation/
         ├── README.md
         ├── run_evaluation.py

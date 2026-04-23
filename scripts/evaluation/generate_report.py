@@ -42,7 +42,7 @@ def generate_markdown(data: dict) -> str:
     lines = [
         f"# {product} 新品评估报告",
         f"",
-        f"**框架版本**: 3.2 | **评估日期**: {eval_date} | **最终结论**: {verdict}",
+        f"**框架版本**: 3.1 | **评估日期**: {eval_date} | **最终结论**: {verdict}",
         f"",
     ]
 
@@ -109,7 +109,7 @@ def generate_docx(data: dict, output_path: Path) -> None:
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     # 基本信息
-    doc.add_paragraph(f"框架版本: 3.2 | 评估日期: {eval_date} | 最终结论: {verdict}")
+    doc.add_paragraph(f"框架版本: 3.1 | 评估日期: {eval_date} | 最终结论: {verdict}")
 
     terminated_by = data.get("terminated_by")
     if terminated_by:

@@ -1,14 +1,15 @@
 """
-fetch_ecommerce.py — 采集京东/天猫电商平台数据
+fetch_ecommerce.py — 采集京东/天猫/美团电商平台数据
 
 鉴权模式: access-token（推荐登录，未登录时部分数据受限）
 依赖: playwright（pip install playwright && playwright install chromium）
 
-覆盖评估规则: A02/A03/A06/A07/C04
+覆盖评估规则: A02/A03/A06/A07/C04/I03/I04
 
 用法:
   python fetch_ecommerce.py --product 阿司匹林
   python fetch_ecommerce.py --product 阿司匹林 --platform jd --pages 5 --json
+  python fetch_ecommerce.py --product 阿司匹林 --platform meituan --json
 """
 
 import argparse
@@ -33,6 +34,11 @@ PLATFORM_CONFIGS = {
         "name": "天猫",
         "search_url": "https://list.tmall.com/search_product.htm?q={keyword}",
         "cookie_key": "tmall",
+    },
+    "meituan": {
+        "name": "美团",
+        "search_url": "https://www.meituan.com/search/?q={keyword}",
+        "cookie_key": "meituan",
     },
 }
 
@@ -112,20 +118,20 @@ def fetch_platform(product: str, platform_key: str, pages: int, wait_ms: int = 3
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="采集京东/天猫电商平台数据")
+    parser = argparse.ArgumentParser(description="采集京东/天猫/美团电商平台数据")
     parser.add_argument("--product", required=True, help="搜索关键词")
     parser.add_argument(
         "--platform",
-        choices=["jd", "tmall", "both"],
-        default="both",
-        help="采集平台：jd/tmall/both，默认 both",
+        choices=["jd", "tmall", "meituan", "all"],
+        default="all",
+        help="采集平台：jd/tmall/meituan/all，默认 all",
     )
     parser.add_argument("--pages", type=int, default=3, help="采集页数，默认 3")
     parser.add_argument("--wait", type=int, default=3000, help="每页等待时间（ms），默认 3000")
     parser.add_argument("--json", dest="output_json", action="store_true", help="输出 JSON 格式")
     args = parser.parse_args()
 
-    platforms = ["jd", "tmall"] if args.platform == "both" else [args.platform]
+    platforms = ["jd", "tmall", "meituan"] if args.platform == "all" else [args.platform]
     results = []
 
     for plat in platforms:

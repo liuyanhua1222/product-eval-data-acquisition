@@ -1,5 +1,5 @@
 """
-run_evaluation.py — 按 3.2 版评估框架执行产品评估
+run_evaluation.py — 按 3.1 版评估框架执行产品评估
 
 鉴权模式: access-token（依赖各平台已登录会话）
 依赖: 无额外依赖（Python 标准库）
@@ -7,8 +7,8 @@ run_evaluation.py — 按 3.2 版评估框架执行产品评估
 执行流程:
   1. 检查各平台登录态
   2. 按模块顺序采集数据（或读取已采集数据）
-  3. 逐条执行 52 个评估事项
-  4. 遇到硬性 NO GO 立即终止
+  3. 逐条执行 A00-K02 共 52 个评估事项
+  4. 遇到硬性 NO GO（A09/A10）立即终止
   5. 输出结构化评估结论
 
 用法:
@@ -29,59 +29,367 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 SCRIPTS_DIR = Path("scripts")
 
-# 硬性 NO GO 规则
-HARD_NO_GO_RULES = {"A08", "A09", "A10"}
+# 硬性 NO GO 规则（任一触发即终止）
+HARD_NO_GO_RULES = {"A09", "A10"}
 
-# 评估规则定义（规则编号 → 名称、所需数据源、判断逻辑说明）
+# 评估规则定义（对齐 3.1 版标准文档 A00-K02）
+# stage: 1=入门筛选, 2=深度评估, 3=最终放行（手动）
 EVALUATION_RULES = {
-    "A00": {"name": "产品基础信息", "sources": ["yaozh", "nmpa", "nhsa"], "stage": 1},
-    "A01": {"name": "批文独家判断（Rx）", "sources": ["yaozh"], "stage": 1},
-    "A02": {"name": "价格优势（Rx）", "sources": ["kaisi", "jd"], "stage": 1},
-    "A03": {"name": "电商运营能力（Rx）", "sources": ["jd", "tmall", "meituan"], "stage": 1},
-    "A04": {"name": "批文独家判断（OTC）", "sources": ["yaozh"], "stage": 1},
-    "A05": {"name": "OTC头部品牌集中度", "sources": ["kaisi"], "stage": 1},
-    "A06": {"name": "价格优势（OTC）", "sources": ["kaisi", "jd"], "stage": 1},
-    "A07": {"name": "电商运营能力（OTC）", "sources": ["jd", "tmall", "meituan"], "stage": 1},
-    "A08": {"name": "壁垒与排除（妆械）", "sources": ["yaozh", "nmpa"], "stage": 1, "hard_no_go": True},
-    "A09": {"name": "排除-保健食品", "sources": ["yaozh", "nmpa"], "stage": 1, "hard_no_go": True},
-    "A10": {"name": "排除-禁售限售", "sources": ["yaozh", "nmpa"], "stage": 1, "hard_no_go": True},
-    "B01": {"name": "疾病类型-自我诊断", "sources": ["yaozh"], "stage": 1},
-    "B02": {"name": "疾病类型-需处方", "sources": ["yaozh"], "stage": 1},
-    "B03": {"name": "强焦虑属性", "sources": ["douyin", "jd"], "stage": 1},
-    "C01": {"name": "人群规模-千万级", "sources": ["pubmed", "wanfang"], "stage": 1},
-    "C02": {"name": "人群规模-500万级", "sources": ["pubmed", "wanfang"], "stage": 1},
-    "C03": {"name": "抖音指数>5万", "sources": ["douyin"], "stage": 1},
-    "C04": {"name": "电商流量基础", "sources": ["jd", "tmall", "xiaohongshu"], "stage": 1},
-    "D01": {"name": "价格合理性（独家）", "sources": ["kaisi", "jd"], "stage": 1},
-    "D02": {"name": "价格合理性（独家）", "sources": ["kaisi", "jd"], "stage": 1},
-    "D03": {"name": "价格优势（Rx）", "sources": ["kaisi", "jd"], "stage": 1},
-    "D04": {"name": "价格优势（OTC）", "sources": ["kaisi", "jd"], "stage": 1},
-    "E01": {"name": "指南/共识一线推荐", "sources": ["cma", "pubmed"], "stage": 1},
-    "E02": {"name": "一线期刊临床数据", "sources": ["pubmed"], "stage": 1},
-    "E03": {"name": "已发表临床研究", "sources": ["pubmed"], "stage": 1},
-    "F01": {"name": "已上市品种", "sources": ["yaozh", "nmpa"], "stage": 1},
-    "F02": {"name": "未上市3年内可能性", "sources": ["yaozh", "nmpa"], "stage": 1},
-    "G01": {"name": "核心疗效优于竞品", "sources": ["pubmed", "yaozh"], "stage": 1},
-    "G02": {"name": "至少2项量化优势", "sources": ["yaozh", "pubmed"], "stage": 1},
-    "H01": {"name": "市场规模-B2C", "sources": ["kaisi"], "stage": 1},
-    "H02": {"name": "市场规模-零售", "sources": ["kaisi"], "stage": 1},
-    "H03": {"name": "Top3品牌份额", "sources": ["kaisi"], "stage": 1},
-    "H04": {"name": "CR3集中度", "sources": ["kaisi"], "stage": 1},
-    "H05": {"name": "CR5集中度", "sources": ["kaisi"], "stage": 1},
-    "H06": {"name": "厂家数量", "sources": ["kaisi"], "stage": 1},
-    "H07": {"name": "品牌数量", "sources": ["kaisi"], "stage": 1},
-    "H08": {"name": "品类均价", "sources": ["kaisi"], "stage": 1},
-    "H09": {"name": "竞争格局预测", "sources": ["kaisi"], "stage": 1},
-    "H10": {"name": "市场增速", "sources": ["kaisi"], "stage": 1},
-    "H11": {"name": "市场集中度趋势", "sources": ["kaisi"], "stage": 1},
-    "I01": {"name": "疗效差异对比", "sources": ["pubmed", "yaozh"], "stage": 2},
-    "I02": {"name": "使用体验差异", "sources": ["jd", "yaozh"], "stage": 2},
-    "I03": {"name": "价格带对比", "sources": ["jd", "kaisi"], "stage": 2},
-    "I04": {"name": "渠道覆盖对比", "sources": ["jd", "meituan"], "stage": 2},
-    "J01": {"name": "财务测算", "sources": [], "stage": 3},
-    "J02": {"name": "供应链评估", "sources": ["douyin"], "stage": 3},
-    "J03": {"name": "战略协同", "sources": [], "stage": 3},
-    "J04": {"name": "最终放行", "sources": [], "stage": 3},
+    # ── A 批文维度 ──────────────────────────────────────────────────────────
+    "A00": {
+        "name": "产品基础信息",
+        "sources": ["yaozh", "nmpa", "nhsa"],
+        "stage": 1,
+        "note": "输出批准文号、企业名称、剂型、规格、适应症、批准日期、医保类别",
+    },
+    "A01": {
+        "name": "Rx 独家批文及独家周期",
+        "sources": ["yaozh", "nmpa"],
+        "stage": 1,
+        "condition": "Rx 产品",
+        "pass_rule": "同 API 同剂型仅本企业有效批文，独家周期 ≥ 3 年",
+    },
+    "A02": {
+        "name": "Rx 非独家价格优势",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 1,
+        "condition": "Rx 非独家",
+        "pass_rule": "本品零售价比同 API Top1 低 ≥ 25%",
+    },
+    "A03": {
+        "name": "Rx 非独家无价格优势时竞品电商运营能力",
+        "sources": ["jd", "tmall", "meituan"],
+        "stage": 1,
+        "condition": "Rx 非独家且价差 < 25%",
+        "pass_rule": "竞品 B2C 或 O2O 满足弱运营任一项",
+    },
+    "A04": {
+        "name": "OTC 独家批文及独家周期",
+        "sources": ["yaozh", "nmpa"],
+        "stage": 1,
+        "condition": "OTC 产品",
+        "pass_rule": "同 API 同剂型同适应症仅本企业有效批文，独家周期 ≥ 3 年",
+    },
+    "A05": {
+        "name": "OTC 非独家头部品牌集中度",
+        "sources": ["kaisi"],
+        "stage": 1,
+        "condition": "OTC 非独家",
+        "pass_rule": "同 API Top1 品牌市占率 < 50%",
+    },
+    "A06": {
+        "name": "OTC 非独家且头部强势时价格优势",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 1,
+        "condition": "OTC 非独家且 Top1 ≥ 50%",
+        "pass_rule": "本品零售价比 Top1 低 ≥ 25%",
+    },
+    "A07": {
+        "name": "OTC 非独家无价格优势时头部品牌电商运营能力",
+        "sources": ["jd", "tmall", "meituan"],
+        "stage": 1,
+        "condition": "OTC 非独家且价差 < 25%",
+        "pass_rule": "头部品牌 B2C 或 O2O 满足弱运营任一项",
+    },
+    "A08": {
+        "name": "妆字号/器械竞争壁垒",
+        "sources": ["yaozh", "nmpa"],
+        "stage": 1,
+        "condition": "妆字号或器械产品",
+        "pass_rule": "存在独家成分/专利/剂型/学术/生产/原料壁垒任一项",
+    },
+    "A09": {
+        "name": "保健食品/功能性食品/跨境产品排除",
+        "sources": ["yaozh", "nmpa"],
+        "stage": 1,
+        "hard_no_go": True,
+        "pass_rule": "不属于保健食品/功能性食品/跨境产品则通过",
+    },
+    "A10": {
+        "name": "线上药店禁售/限售排除",
+        "sources": ["yaozh", "nmpa"],
+        "stage": 1,
+        "hard_no_go": True,
+        "pass_rule": "不属于禁售/限售品类则通过",
+    },
+    # ── B 疾病类型 ──────────────────────────────────────────────────────────
+    "B01": {
+        "name": "疾病可自我诊断和自我用药",
+        "sources": ["yaozh"],
+        "stage": 1,
+        "pass_rule": "无需医生诊断/检测，患者可自主判断并用药",
+    },
+    "B02": {
+        "name": "疾病需医生诊断但患者可自我选择用药",
+        "sources": ["yaozh"],
+        "stage": 1,
+        "pass_rule": "确诊依赖医生，但患者有自购/线上购药空间",
+    },
+    "B03": {
+        "name": "强焦虑疾病/需求属性",
+        "sources": ["douyin", "jd", "tmall"],
+        "stage": 1,
+        "pass_rule": "属于外貌/健康/形象/生活/隐私焦虑任一类",
+    },
+    "B04": {
+        "name": "高频反复或长周期需求",
+        "sources": ["yaozh"],
+        "stage": 1,
+        "pass_rule": "具有高频、反复、长周期或周期性用药特征",
+    },
+    # ── C 人群规模和流量基础 ────────────────────────────────────────────────
+    "C01": {
+        "name": "国内患者或需求人群千万级",
+        "sources": ["pubmed", "wanfang", "cnki"],
+        "stage": 1,
+        "pass_rule": "权威流行病学支持国内人群 ≥ 1000 万",
+    },
+    "C02": {
+        "name": "国内需就诊/用药人群 500 万级",
+        "sources": ["pubmed", "wanfang", "cnki"],
+        "stage": 1,
+        "pass_rule": "需就诊或用药人群 ≥ 500 万",
+    },
+    "C03": {
+        "name": "抖音站内搜索指数 > 5 万",
+        "sources": ["douyin"],
+        "stage": 1,
+        "pass_rule": "相关核心词抖音搜索指数 > 50000",
+    },
+    "C04": {
+        "name": "京东/阿里/美团补充流量基础",
+        "sources": ["jd", "tmall", "meituan"],
+        "stage": 1,
+        "condition": "C03 不通过时",
+        "pass_rule": "三大平台任一有明确搜索热度/销量/购买人群证据",
+    },
+    # ── D 产品价格 ──────────────────────────────────────────────────────────
+    "D01": {
+        "name": "独家且有差异/创新产品定价合理性",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 1,
+        "condition": "独家且有差异或创新",
+        "pass_rule": "本品价格 ≤ 同品类均价 × 1.5",
+    },
+    "D02": {
+        "name": "独家但无显著差异产品定价合理性",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 1,
+        "condition": "独家且无显著差异",
+        "pass_rule": "本品价格与市场 Top3 主流价格区间相当",
+    },
+    "D03": {
+        "name": "Rx 非独家产品低价优势",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 1,
+        "condition": "Rx 非独家",
+        "pass_rule": "本品零售价比头部品牌低 ≥ 25%",
+    },
+    "D04": {
+        "name": "OTC 非独家产品低价优势",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 1,
+        "condition": "OTC 非独家",
+        "pass_rule": "本品零售价比头部品牌低 15%-20% 或以上",
+    },
+    # ── E 学术支撑 ──────────────────────────────────────────────────────────
+    "E01": {
+        "name": "指南/专家共识一线推荐",
+        "sources": ["pubmed"],
+        "stage": 1,
+        "pass_rule": "被指南或专家共识推荐为一线或核心治疗选择",
+    },
+    "E02": {
+        "name": "非一线推荐但有一线期刊临床数据",
+        "sources": ["pubmed", "wanfang", "cnki"],
+        "stage": 1,
+        "condition": "E01 不通过",
+        "pass_rule": "在一线期刊发表过相关临床研究数据",
+    },
+    "E03": {
+        "name": "已发表相关临床研究论文",
+        "sources": ["pubmed", "wanfang", "cnki"],
+        "stage": 1,
+        "condition": "E01/E02 不通过",
+        "pass_rule": "已发表与目标适应症相关的临床研究论文",
+    },
+    # ── F 上市时间 ──────────────────────────────────────────────────────────
+    "F01": {
+        "name": "已上市品种判断",
+        "sources": ["yaozh", "nmpa"],
+        "stage": 1,
+        "pass_rule": "存在有效批准文号且状态支持上市销售",
+    },
+    "F02": {
+        "name": "未上市产品 3 年内上市可能性",
+        "sources": ["yaozh", "nmpa"],
+        "stage": 1,
+        "condition": "F01 不通过",
+        "pass_rule": "根据注册/审评/临床进度可合理判断 3 年内上市",
+    },
+    # ── G 产品疗效 ──────────────────────────────────────────────────────────
+    "G01": {
+        "name": "核心疗效优于主流竞品",
+        "sources": ["pubmed", "wanfang", "cnki"],
+        "stage": 1,
+        "pass_rule": "临床或真实世界数据证明核心疗效指标明确优于竞品",
+    },
+    "G02": {
+        "name": "无核心疗效优势时至少 2 项量化优势",
+        "sources": ["yaozh", "pubmed"],
+        "stage": 1,
+        "condition": "G01 不通过",
+        "pass_rule": "起效更快/疗效更稳定/安全性更优/适用人群更广，至少 2 项",
+    },
+    # ── H 市场概述 ──────────────────────────────────────────────────────────
+    "H01": {
+        "name": "独家品种同适应症/同品类市场规模",
+        "sources": ["kaisi"],
+        "stage": 1,
+        "condition": "独家品种",
+        "note": "输出近三年 B2C 规模、线下药店规模、同比、渠道占比",
+    },
+    "H02": {
+        "name": "独家品种同适应症/同品类价格和转化",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 1,
+        "condition": "独家品种",
+        "note": "输出盒单价、日服用成本、行业平均转换率、平均客单价",
+    },
+    "H03": {
+        "name": "独家品种 Top3 竞品市场表现",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 1,
+        "condition": "独家品种",
+        "note": "输出 Top3 近三年规模、份额、同比、客单价、日服用价格",
+    },
+    "H04": {
+        "name": "非独家品种同适应症/同品类整体规模",
+        "sources": ["kaisi"],
+        "stage": 1,
+        "condition": "非独家品种",
+        "note": "输出近三年 B2C 规模、线下药店规模、同比、渠道占比",
+    },
+    "H05": {
+        "name": "非独家品种同 API 市场格局",
+        "sources": ["kaisi", "nmpa", "yaozh"],
+        "stage": 1,
+        "condition": "非独家品种",
+        "note": "输出同 API 近三年规模、份额、上市产品数、市场集中度",
+    },
+    "H06": {
+        "name": "非独家品种同 API 价格和转化",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 1,
+        "condition": "非独家品种",
+        "note": "输出同 API 盒单价、日服用成本、行业平均转换率、平均客单价",
+    },
+    "H07": {
+        "name": "非独家品种同 API Top3 市场表现",
+        "sources": ["kaisi"],
+        "stage": 1,
+        "condition": "非独家品种",
+        "note": "输出同 API Top3 近三年规模、份额、同比",
+    },
+    "H08": {
+        "name": "非独家品种同 API Top3 价格表现",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 1,
+        "condition": "非独家品种",
+        "note": "输出同 API Top3 盒单价、日服用成本、平均客单价",
+    },
+    "H09": {
+        "name": "竞争格局 3-5 年变化预测",
+        "sources": ["nmpa", "yaozh"],
+        "stage": 1,
+        "note": "输出已上市/在研/临床企业数，判断 3-5 年竞争格局",
+    },
+    "H10": {
+        "name": "市场进入壁垒",
+        "sources": ["nmpa", "kaisi", "pubmed"],
+        "stage": 1,
+        "note": "输出专利/技术/品牌/生产/学术/渠道壁垒类型和强度",
+    },
+    "H11": {
+        "name": "同 API 强势品牌和新进入者威胁",
+        "sources": ["kaisi", "nmpa", "jd"],
+        "stage": 1,
+        "condition": "非独家品种",
+        "note": "输出强势品牌压力和新进入威胁程度",
+    },
+    # ── I 产品维度（深度） ──────────────────────────────────────────────────
+    "I01": {
+        "name": "本品与竞品疗效差异",
+        "sources": ["pubmed", "wanfang", "cnki"],
+        "stage": 2,
+        "note": "输出各竞品疗效终点对比差异",
+    },
+    "I02": {
+        "name": "本品与竞品非疗效差异",
+        "sources": ["yaozh", "pubmed"],
+        "stage": 2,
+        "note": "输出起效时间/安全性/副作用/作用周期/适用人群对比",
+    },
+    "I03": {
+        "name": "本品与竞品使用体验差异",
+        "sources": ["yaozh", "jd", "tmall"],
+        "stage": 2,
+        "note": "输出便捷性/身体体感/依从性三维度对比",
+    },
+    "I04": {
+        "name": "独家品种价格带和 Top3 对比",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 2,
+        "condition": "独家品种",
+        "note": "输出品类主流价格区间、本品与 Top3 价格对比",
+    },
+    "I05": {
+        "name": "非独家品种同 API 价格带和 Top3 对比",
+        "sources": ["kaisi", "jd", "tmall"],
+        "stage": 2,
+        "condition": "非独家品种",
+        "note": "输出同 API 主流价格区间、本品与 Top3 价格对比",
+    },
+    "I06": {
+        "name": "指南/共识学术地位相对竞品",
+        "sources": ["pubmed"],
+        "stage": 2,
+        "note": "输出本品在指南/共识中推荐顺位相较竞品的位置",
+    },
+    "I07": {
+        "name": "非指南/共识推荐时的临床治疗选择位置",
+        "sources": ["pubmed", "wanfang", "cnki"],
+        "stage": 2,
+        "condition": "I06 不适用",
+        "note": "输出本品在临床治疗路径中的位置（主流/补充/替代/后线）",
+    },
+    # ── J 人群及流量趋势（深度） ────────────────────────────────────────────
+    "J01": {
+        "name": "人群规模趋势",
+        "sources": ["pubmed", "wanfang", "cnki"],
+        "stage": 2,
+        "note": "输出患病率及就诊/需求人群近三年增长趋势和 CAGR",
+    },
+    "J02": {
+        "name": "抖音/小红书搜索趋势",
+        "sources": ["douyin"],
+        "stage": 2,
+        "note": "输出近三年站内搜索人群或关键词指数同比和 CAGR",
+    },
+    # ── K 医生资源（深度） ──────────────────────────────────────────────────
+    "K01": {
+        "name": "可合作医生数量和粉丝规模",
+        "sources": ["douyin"],
+        "stage": 2,
+        "note": "输出抖音/视频号可合作医生数量、垂直科室医生数量、粉丝总量",
+    },
+    "K02": {
+        "name": "产品与现有新媒体医生库匹配度",
+        "sources": [],
+        "stage": 2,
+        "note": "输出可直接合作/需拓展/空白三类匹配结论（需内部医生库）",
+        "missing_source_default": "需补充内部新媒体医生库",
+    },
 }
 
 
@@ -111,9 +419,10 @@ def build_empty_item(rule_id: str, rule: dict) -> dict:
         "result": "待执行",
         "key_value": None,
         "evidence": None,
-        "note": None,
-        "missing_source": None,
+        "note": rule.get("note") or rule.get("pass_rule"),
+        "missing_source": rule.get("missing_source_default"),
         "sources_required": rule["sources"],
+        "condition": rule.get("condition"),
     }
 
 
@@ -143,7 +452,7 @@ def evaluate_stage(product: str, stage: int, sessions: dict, data_dir: Path | No
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="按 3.2 版评估框架执行产品评估")
+    parser = argparse.ArgumentParser(description="按 3.1 版评估框架执行产品评估")
     parser.add_argument("--product", required=True, help="产品名称")
     parser.add_argument("--approval-number", help="批准文号（可选）")
     parser.add_argument("--data-dir", help="已采集数据目录（不传则实时采集）")
@@ -157,7 +466,7 @@ def main() -> None:
     args = parser.parse_args()
 
     print(f"🚀 开始评估: {args.product}", file=sys.stderr)
-    print(f"   评估框架: 3.2 版 | 阶段: {args.stage}", file=sys.stderr)
+    print(f"   评估框架: 3.1 版 | 阶段: {args.stage}", file=sys.stderr)
 
     # 检查登录状态
     print("🔍 检查平台登录状态...", file=sys.stderr)
@@ -170,7 +479,7 @@ def main() -> None:
         "product": args.product,
         "approval_number": args.approval_number,
         "evaluation_date": datetime.now().strftime("%Y-%m-%d"),
-        "framework_version": "3.2",
+        "framework_version": "3.1",
         "stages_executed": stages_to_run,
         "final_verdict": None,
         "terminated_by": None,
