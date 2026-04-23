@@ -27,6 +27,38 @@ SCRIPTS_DIR = Path("scripts")
 PUBLIC_SOURCES = {"pubmed", "nmpa", "nhsa"}
 MANUAL_RESULT = "待人工判读"
 NEEDS_DATA_RESULT = "需补充数据"
+LOGIN_PLATFORM_ORDER = [
+    "yaozh",
+    "kaisi",
+    "douyin",
+    "xiaohongshu",
+    "jd",
+    "tmall",
+    "meituan",
+    "eleme",
+    "wanfang",
+    "cnki",
+    "cma",
+]
+SOURCE_TO_LOGIN_PLATFORM = {
+    "doctor": "douyin",
+}
+FETCHABLE_SOURCES = {
+    "yaozh",
+    "nmpa",
+    "nhsa",
+    "kaisi",
+    "jd",
+    "tmall",
+    "meituan",
+    "eleme",
+    "douyin",
+    "xiaohongshu",
+    "pubmed",
+    "wanfang",
+    "cnki",
+    "dingxiangyuan",
+}
 
 SOURCE_FILE_PREFIXES = {
     "yaozh": "yaozh-",
@@ -197,6 +229,134 @@ def collect_data_files(data_dir: Path | None, product: str) -> dict[str, list[Pa
     return files_by_source
 
 
+def collect_missing_login_platforms(stages_to_run: list[int], files_by_source: dict[str, list[Path]]) -> list[str]:
+    required_platforms = set()
+    for rule in EVALUATION_RULES.values():
+        if rule["stage"] not in stages_to_run:
+            continue
+        for source in rule["sources"]:
+            if source in PUBLIC_SOURCES or source in files_by_source:
+                continue
+            platform = SOURCE_TO_LOGIN_PLATFORM.get(source, source)
+            if platform not in PUBLIC_SOURCES:
+                required_platforms.add(platform)
+
+    return [platform for platform in LOGIN_PLATFORM_ORDER if platform in required_platforms]
+
+
+def collect_missing_sources(stages_to_run: list[int], files_by_source: dict[str, list[Path]]) -> list[str]:
+    required_sources = set()
+    for rule in EVALUATION_RULES.values():
+        if rule["stage"] not in stages_to_run:
+            continue
+        for source in rule["sources"]:
+            if source in files_by_source:
+                continue
+            required_sources.add(source)
+    ordered = [source for source in SOURCE_FILE_PREFIXES if source in required_sources]
+    extras = [source for source in required_sources if source not in SOURCE_FILE_PREFIXES]
+    return ordered + sorted(extras)
+
+
+def ensure_sessions_for_platforms(platforms: list[str], sessions: dict, output_json: bool) -> dict:
+    if not platforms or output_json or not sys.stdin.isatty():
+        return sessions
+
+    print("\n🔐 检测到后续评估缺少登录态，开始进入引导式登录流程...", file=sys.stderr)
+    print("   我会按需逐个平台打开登录页；你在弹出的浏览器中完成登录后，流程会继续。", file=sys.stderr)
+
+    for platform in platforms:
+        if sessions.get(platform, {}).get("has_session"):
+            continue
+
+        print(f"\n➡️  准备登录平台: {platform}", file=sys.stderr)
+        confirm = input(f"现在打开 {platform} 的登录窗口吗？(Y/n) ").strip().lower()
+        if confirm == "n":
+            print(f"⏭️  已跳过 {platform}，相关规则后续会标记为需补充数据。", file=sys.stderr)
+            continue
+
+        result = subprocess.run(
+            [sys.executable, str(SCRIPTS_DIR / "platform-auth" / "login.py"), "--platform", platform, "--manual"],
+            text=True,
+        )
+        if result.returncode != 0:
+            print(f"⚠️  {platform} 登录流程未完成或执行失败，相关规则将继续标记为需补充数据。", file=sys.stderr)
+
+        sessions = check_sessions()
+
+    return sessions
+
+
+def build_fetch_command(source: str, product: str, approval_number: str | None) -> list[str] | None:
+    base = [sys.executable]
+    if source == "yaozh":
+        cmd = [str(SCRIPTS_DIR / "data-acquisition" / "fetch_yaozh.py"), "--product", product]
+        if approval_number:
+            cmd.extend(["--approval-number", approval_number])
+        return base + cmd
+    if source == "nmpa":
+        cmd = [str(SCRIPTS_DIR / "data-acquisition" / "fetch_nmpa.py")]
+        if approval_number:
+            cmd.extend(["--approval-number", approval_number])
+        else:
+            cmd.extend(["--product", product])
+        return base + cmd
+    if source == "nhsa":
+        return base + [str(SCRIPTS_DIR / "data-acquisition" / "fetch_nhsa.py"), "--product", product]
+    if source == "kaisi":
+        return base + [str(SCRIPTS_DIR / "data-acquisition" / "fetch_kaisi.py"), "--product", product]
+    if source in {"jd", "tmall", "meituan", "eleme"}:
+        return base + [
+            str(SCRIPTS_DIR / "data-acquisition" / "fetch_ecommerce.py"),
+            "--product",
+            product,
+            "--platform",
+            source,
+        ]
+    if source == "douyin":
+        return base + [str(SCRIPTS_DIR / "data-acquisition" / "fetch_douyin.py"), "--keywords", product]
+    if source == "xiaohongshu":
+        return base + [str(SCRIPTS_DIR / "data-acquisition" / "fetch_xiaohongshu.py"), "--keywords", product]
+    if source in {"pubmed", "wanfang", "cnki"}:
+        # 文献类来源不自动补采，因为需要根据具体规则确定检索词（疾病/适应症/API/产品名）
+        return None
+    if source == "dingxiangyuan":
+        return base + [str(SCRIPTS_DIR / "data-acquisition" / "fetch_dingxiangyuan.py"), "--product", product]
+    return None
+
+
+def auto_fetch_missing_sources(
+    stages_to_run: list[int],
+    files_by_source: dict[str, list[Path]],
+    sessions: dict,
+    product: str,
+    approval_number: str | None,
+    interactive_enabled: bool,
+) -> None:
+    if not interactive_enabled:
+        return
+
+    missing_sources = collect_missing_sources(stages_to_run, files_by_source)
+    fetch_targets = [source for source in missing_sources if source in FETCHABLE_SOURCES]
+    if not fetch_targets:
+        return
+
+    print("\n📦 检测到部分数据源尚未采集，开始自动补采可执行的数据源...", file=sys.stderr)
+    for source in fetch_targets:
+        platform = SOURCE_TO_LOGIN_PLATFORM.get(source, source)
+        if source not in PUBLIC_SOURCES and not sessions.get(platform, {}).get("has_session"):
+            continue
+
+        cmd = build_fetch_command(source, product, approval_number)
+        if not cmd:
+            continue
+
+        print(f"   ▶ 自动采集 {source} ...", file=sys.stderr)
+        result = subprocess.run(cmd, text=True)
+        if result.returncode != 0:
+            print(f"   ⚠️  {source} 自动采集失败，后续继续保留缺口提示。", file=sys.stderr)
+
+
 def load_source_payloads(files_by_source: dict[str, list[Path]]) -> dict[str, list[dict]]:
     payloads: dict[str, list[dict]] = {}
     for source, files in files_by_source.items():
@@ -284,12 +444,13 @@ def evaluate_rule(rule_id: str, item: dict, rule: dict, files_by_source: dict[st
         return item
 
     if rule_id == "C03":
-        hits = re.findall(r"([1-9]\d{4,})", text_blob)
+        # 抖音指数通常为 5-7 位数字，且不会超过千万级，避免误匹配时间戳/订单号等超长数字
+        hits = re.findall(r"\b([1-9]\d{4,6})\b", text_blob)
         if hits:
             max_value = max(int(v) for v in hits)
             item["key_value"] = f"最大候选指数={max_value}"
             item["result"] = "通过" if max_value > 50000 else "不通过"
-            item["note"] = "基于页面文本中的 5 位以上数字做基础阈值判断，仍建议人工复核"
+            item["note"] = "基于页面文本中的 5-7 位数字做基础阈值判断，已排除超长数字，仍建议人工复核"
         else:
             item["result"] = MANUAL_RESULT
             item["note"] = "已有抖音数据文件，但未提取到可用于阈值判断的数值"
@@ -330,6 +491,8 @@ def main() -> None:
     parser.add_argument("--approval-number", help="批准文号（可选）")
     parser.add_argument("--data-dir", help="已采集数据目录（不传则从默认日志目录读取）")
     parser.add_argument("--stage", choices=["1", "2", "3", "all"], default="all", help="执行阶段：1/2/3/all，默认 all")
+    parser.add_argument("--no-auto-login", action="store_true", help="禁用自动引导登录；缺少登录态时仅报告缺口")
+    parser.add_argument("--no-auto-fetch", action="store_true", help="禁用自动补采；缺少数据文件时仅报告缺口")
     parser.add_argument("--json", dest="output_json", action="store_true", help="输出 JSON 格式")
     args = parser.parse_args()
 
@@ -340,9 +503,24 @@ def main() -> None:
     sessions = check_sessions()
 
     data_dir = Path(args.data_dir) if args.data_dir else None
+    stages_to_run = [1, 2, 3] if args.stage == "all" else [int(args.stage)]
+
+    files_by_source = collect_data_files(data_dir, args.product)
+    missing_login_platforms = collect_missing_login_platforms(stages_to_run, files_by_source)
+    sessions = ensure_sessions_for_platforms(missing_login_platforms, sessions, args.output_json or args.no_auto_login)
+
+    auto_fetch_missing_sources(
+        stages_to_run,
+        files_by_source,
+        sessions,
+        args.product,
+        args.approval_number,
+        not (args.output_json or args.no_auto_fetch),
+    )
+
+    # 登录或补采完成后重新读取本地数据文件，避免前后状态不一致
     files_by_source = collect_data_files(data_dir, args.product)
     payloads = load_source_payloads(files_by_source)
-    stages_to_run = [1, 2, 3] if args.stage == "all" else [int(args.stage)]
 
     evaluation_result = {
         "product": args.product,

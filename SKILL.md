@@ -1,10 +1,8 @@
 ---
 name: product-eval-data-acquisition
-description: 执行院外新产品三阶段筛选评估，自动采集多平台数据并输出半自动评估编排结果
+description: 执行院外新产品三阶段筛选评估，自动引导登录、补采多平台数据并输出半自动评估编排结果
 skillcode: product-eval-data-acquisition
-github: https://github.com/xgjk/xg-skills/tree/main/product-eval-data-acquisition
-dependencies:
-  - cms-auth-skills
+github: https://github.com/liuyanhua1222/product-eval-data-acquisition
 ---
 
 # product-eval-data-acquisition — 索引
@@ -49,7 +47,7 @@ dependencies:
 
 ## 统一规范
 
-- 鉴权依赖：`cms-auth-skills/SKILL.md`
+- 鉴权模式：access-token（依赖各平台已登录会话）
 - 运行日志：`.cms-log/log/product-eval-data-acquisition/`
 - 会话状态：`~/.agent-browser/sessions/<platform>-cookies.json`
 - 输出格式：所有脚本支持结构化 JSON；`run_evaluation.py` 输出半自动评估编排结果
@@ -58,7 +56,7 @@ dependencies:
 
 ## 授权依赖
 
-- 需要鉴权时先读取 `cms-auth-skills/SKILL.md`
+- 本 Skill 自行管理各平台登录态，无外部鉴权依赖
 - 依赖缺失时先安装依赖，再继续执行
 
 ---
@@ -83,7 +81,7 @@ dependencies:
 2. 执行 `platform-auth/check_session.py` 确认各平台登录态
 3. 对缺失登录态的平台执行 `platform-auth/login.py`
 4. 按评估模块顺序执行 `data-acquisition/` 下对应脚本采集数据
-5. 执行 `evaluation/run_evaluation.py` 汇总评估结论
+5. 执行 `evaluation/run_evaluation.py`；若缺少关键平台登录态，会主动弹出引导式登录流程，并对可直接用产品名采集的数据源自动补采
 6. 输出最终报告
 
 ---
@@ -107,7 +105,7 @@ dependencies:
 
 ## 宪章
 
-- 本 Skill 不自行实现登录流程，鉴权统一依赖 `cms-auth-skills`
+- 本 Skill 自行管理各平台登录态，无外部鉴权依赖
 - 凭证信息不存储在 Skill 包目录内
 - 危险操作（批量写入、清除会话）执行前必须确认
 

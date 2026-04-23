@@ -22,6 +22,12 @@
 # 执行完整评估（所有阶段）
 python scripts/evaluation/run_evaluation.py --product 门冬氨酸钙片
 
+# 执行评估但不主动拉起登录引导
+python scripts/evaluation/run_evaluation.py --product 门冬氨酸钙片 --no-auto-login
+
+# 执行评估但不自动补采数据
+python scripts/evaluation/run_evaluation.py --product 门冬氨酸钙片 --no-auto-fetch
+
 # 仅执行第一阶段
 python scripts/evaluation/run_evaluation.py --product 阿司匹林 --stage 1
 
@@ -75,6 +81,19 @@ python scripts/evaluation/generate_report.py \
   }
 }
 ```
+
+当 `run_evaluation.py` 发现当前阶段所需平台既没有现成数据文件、也没有有效登录态时：
+
+- 交互式终端下会主动逐个平台弹出手动登录引导
+- 用户完成浏览器中的扫码/短信/账号登录后，流程继续执行
+- 传入 `--no-auto-login` 或 `--json` 时，不弹出浏览器，仅报告缺口
+
+当登录态可用但数据文件仍缺失时：
+
+- 会自动调用可直接基于产品名执行的采集脚本补采
+- 当前支持自动补采的来源包括：药智网、NMPA、国家医保局、开思、京东/天猫/美团/饿了么、抖音、小红书、PubMed/万方/知网、丁香园
+- 医生资源、指南等仍需更明确的疾病/科室上下文，当前不会自动补采
+- 传入 `--no-auto-fetch` 或 `--json` 时，不执行自动补采
 
 ---
 
